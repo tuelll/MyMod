@@ -8,28 +8,39 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Baixar Codigo
+      - name: Baixar Codigo do Mod
         uses: actions/checkout@v4
+        with:
+          path: meu-mod
+
+      - name: Baixar a SDK Oficial do AML
+        uses: actions/checkout@v4
+        with:
+          repository: RusJJ/AndroidModLoader
+          path: aml-sdk
 
       - name: Instalar Android NDK
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r27
 
-      - name: Organizar e Compilar Localmente
+      - name: Organizar Pastas e Compilar
         run: |
-          # 1. Cria a estrutura oficial exigida pelo ndk-build
+          # 1. Cria a estrutura oficial JNI exigida pelo NDK
           mkdir -p jni
           
-          # 2. Move os seus arquivos locais para dentro da pasta de compilação
-          mv -f Android.mk jni/Android.mk 2>/dev/null || true
-          mv -f Application.mk jni/Application.mk 2>/dev/null || true
-          mv -f Audio.cpp jni/Audio.cpp 2>/dev/null || true
-          mv -f Audio.h jni/Audio.h 2>/dev/null || true
-          mv -f ImprovedIdles.cpp jni/ImprovedIdles.cpp 2>/dev/null || true
+          # 2. Move os seus arquivos locais para dentro da pasta jni
+          mv -f meu-mod/Android.mk jni/Android.mk 2>/dev/null || true
+          mv -f meu-mod/Application.mk jni/Application.mk 2>/dev/null || true
+          mv -f meu-mod/Audio.cpp jni/Audio.cpp 2>/dev/null || true
+          mv -f meu-mod/Audio.h jni/Audio.h 2>/dev/null || true
+          mv -f meu-mod/ImprovedIdles.cpp jni/ImprovedIdles.cpp 2>/dev/null || true
           
-          # 3. Executa a compilação local nativa
-          $ANDROID_NDK_LATEST_HOME/ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=jni/Application.mk
+          # 3. Copia a pasta de cabeçalhos 'mod' do AML para dentro de jni
+          cp -r aml-sdk/mod jni/mod
+          
+          # 4. Executa a compilação oficial usando o NDK r27
+          $ANDROID_NDK_LATEST_HOME/ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=jni/Application.mk NDK_APP_INCLUDES+=jni
 
       - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
