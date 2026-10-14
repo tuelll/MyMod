@@ -16,19 +16,18 @@ jobs:
         with:
           ndk-version: r27
 
-      - name: Organizar e Compilar Localmente
+      - name: Compilar usando ndk-build
         run: |
-          # 1. Cria a estrutura oficial exigida pelo ndk-build
           mkdir -p jni
           
-          # 2. Move os seus arquivos locais para dentro da pasta de compilação
+          # Move seus arquivos respeitando as letras maiusculas
           mv -f Android.mk jni/Android.mk 2>/dev/null || true
           mv -f Application.mk jni/Application.mk 2>/dev/null || true
           mv -f Audio.cpp jni/Audio.cpp 2>/dev/null || true
           mv -f Audio.h jni/Audio.h 2>/dev/null || true
           mv -f ImprovedIdles.cpp jni/ImprovedIdles.cpp 2>/dev/null || true
           
-          # 3. Executa a compilação local nativa
+          # Executa a compilacao oficial do NDK
           $ANDROID_NDK_LATEST_HOME/ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=jni/Application.mk
 
       - name: Disponibilizar Mod Pronto
