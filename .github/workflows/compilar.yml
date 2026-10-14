@@ -24,7 +24,7 @@ jobs:
         with:
           ndk-version: r27
 
-      - name: Organizar Pastas e Compilar
+      - name: Organizar Pastas e Corrigir Codigo
         run: |
           # 1. Cria a estrutura oficial JNI exigida pelo NDK
           mkdir -p jni
@@ -39,14 +39,23 @@ jobs:
           # 3. Copia a pasta de cabeçalhos 'mod' do AML para dentro de jni
           cp -r aml-sdk/mod jni/mod
           
-          # 4. Executa a compilação oficial injetando as correções direto nas flags do NDK
-          # Isso força a inclusão de config.h e resolve o tipo Config sem estragar o arquivo físico
+          # 4. Cria um cabeçalho auxiliar para resolver o namespace com segurança
+          cat << 'EOF' > jni/aml_fix.h
+          #pragma once
+          #include <mod/amlmod.h>
+          #include <mod/config.h>
+          typedef aml::Config aml_Config_t;
+          EOF
+          
+          # 5. Modifica temporariamente o ImprovedIdles.cpp para usar o tipo corrigido sem quebrar a SDK
+          sed -i 's/\bConfig\b/aml_Config_t/g' jni/ImprovedIdles.cpp
+          sed -i '1s/^/#include "aml_fix.h"\n/' jni/ImprovedIdles.cpp
+          
+          # 6. Executa a compilação oficial usando o NDK r27
           $ANDROID_NDK_LATEST_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
-            NDK_APP_INCLUDES+=jni \
-            APP_CFLAGS="-include jni/mod/config.h -DConfig=aml::Config" \
-            APP_CPPFLAGS="-include jni/mod/config.h -DConfig=aml::Config"
+            NDK_APP_INCLUDES+=jni
 
       - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
