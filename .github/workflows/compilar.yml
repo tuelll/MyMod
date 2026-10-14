@@ -39,15 +39,16 @@ jobs:
           # 3. Copia a pasta de cabeçalhos 'mod' do AML para dentro de jni
           cp -r aml-sdk/mod jni/mod
           
-          # 4. Cria um cabeçalho auxiliar para resolver o namespace com segurança
+          # 4. Cria um cabeçalho auxiliar usando o operador de escopo global (::aml)
           cat << 'EOF' > jni/aml_fix.h
           #pragma once
           #include <mod/amlmod.h>
           #include <mod/config.h>
-          typedef aml::Config aml_Config_t;
+          // O prefixo :: garante que o compilador busque o namespace raiz, ignorando a variável aml
+          typedef ::aml::Config aml_Config_t;
           EOF
           
-          # 5. Modifica temporariamente o ImprovedIdles.cpp para usar o tipo corrigido sem quebrar a SDK
+          # 5. Modifica temporariamente o ImprovedIdles.cpp para usar o tipo corrigido
           sed -i 's/\bConfig\b/aml_Config_t/g' jni/ImprovedIdles.cpp
           sed -i '1s/^/#include "aml_fix.h"\n/' jni/ImprovedIdles.cpp
           
