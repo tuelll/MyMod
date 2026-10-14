@@ -16,19 +16,28 @@ jobs:
         with:
           ndk-version: r27
 
-      - name: Compilar usando ndk-build
+      - name: Baixar a SDK do AndroidModLoader
         run: |
-          mkdir -p jni
+          # Cria a estrutura de pastas necessária
+          mkdir -p jni/mod
           
-          # Move seus arquivos respeitando as letras maiusculas
+          # Baixa os arquivos essenciais de cabeçalho do AML oficial
+          curl -sL https://githubusercontent.com -o jni/mod/amlmod.h
+          curl -sL https://githubusercontent.com -o jni/mod/iaml.h
+          curl -sL https://githubusercontent.com -o jni/mod/logger.h
+          curl -sL https://githubusercontent.com -o jni/mod/config.h
+
+      - name: Organizar e Compilar usando ndk-build
+        run: |
+          # Move seus arquivos de código para a pasta jni
           mv -f Android.mk jni/Android.mk 2>/dev/null || true
           mv -f Application.mk jni/Application.mk 2>/dev/null || true
           mv -f Audio.cpp jni/Audio.cpp 2>/dev/null || true
           mv -f Audio.h jni/Audio.h 2>/dev/null || true
           mv -f ImprovedIdles.cpp jni/ImprovedIdles.cpp 2>/dev/null || true
           
-          # Executa a compilacao oficial do NDK
-          $ANDROID_NDK_LATEST_HOME/ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=jni/Application.mk
+          # Executa a compilacao oficial incluindo a pasta jni na busca de arquivos
+          $ANDROID_NDK_LATEST_HOME/ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=jni/Application.mk NDK_APP_INCLUDES+=jni
 
       - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
