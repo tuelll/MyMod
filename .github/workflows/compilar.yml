@@ -5,7 +5,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Baixar Código
+      - name: Baixar Codigo
         uses: actions/checkout@v4
 
       - name: Instalar Android NDK
@@ -13,11 +13,16 @@ jobs:
         with:
           ndk-version: r27
 
-      - name: Compilar com Clang para 32 bits
+      - name: Compilar usando ndk-build
         run: |
-          mkdir -p libs/armeabi-v7a
-          $ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++ \
-            -shared -fPIC -O2 audio.cpp improvedidles.cpp -o libs/armeabi-v7a/libmeumod.so
+          # Cria a estrutura correta que o NDK exige
+          mkdir -p jni
+          
+          # Move seus arquivos para a pasta jni caso estejam na raiz
+          mv -f Android.mk Application.mk audio.cpp audio.h improvedidles.cpp jni/ 2>/dev/null || true
+          
+          # Executa a compilação nativa oficial
+          $ANDROID_NDK_LATEST_HOME/ndk-build NDK_PROJECT_PATH=. NDK_APPLICATION_MK=jni/Application.mk
 
       - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
