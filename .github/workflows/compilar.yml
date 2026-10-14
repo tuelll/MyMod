@@ -1,11 +1,11 @@
-name: Compilar Mod AML
+name: Compilar Mod GTA AML
 on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Baixar Codigo
+      - name: Baixar Código
         uses: actions/checkout@v4
 
       - name: Instalar Android NDK
@@ -13,16 +13,15 @@ jobs:
         with:
           ndk-version: r27
 
-      - name: Compilar com Clang (32 e 64 bits)
+      - name: Compilar com Clang para 32 bits
         run: |
           mkdir -p libs/armeabi-v7a
-          # Compila a versão de 32 bits para o seu celular
           $ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++ \
-            -shared -fPIC -O2 main.cpp -o libs/armeabi-v7a/libmeumod.so
+            -shared -fPIC -O2 audio.cpp improvedidles.cpp -o libs/armeabi-v7a/libmeumod.so
 
-      - name: Guardar Mod Pronto
+      - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
         with:
-          name: meu-mod-gta-sa
+          name: mod-gta-completo
           path: libs/
           
