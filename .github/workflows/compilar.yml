@@ -24,7 +24,7 @@ jobs:
         with:
           ndk-version: r27
 
-      - name: Organizar Pastas e Compilar
+      - name: Organizar Pastas e Corrigir Codigo
         run: |
           # 1. Cria a estrutura oficial JNI exigida pelo NDK
           mkdir -p jni
@@ -37,7 +37,21 @@ jobs:
           # 3. Copia apenas a pasta de cabeçalhos oficiais da SDK para dentro de jni
           cp -r aml-sdk/mod jni/mod
           
-          # 4. Executa a compilação oficial pura usando o seu Android.mk nativo
+          # 4. CORREÇÃO 1: Resolve o problema do namespace/Config injetando o remendo global
+          cat << 'EOF' > jni/patch_aml.h
+          #pragma once
+          #include <mod/config.h>
+          typedef class Config aml_Config_Safe_t;
+          EOF
+          
+          sed -i '1s/^/#include "patch_aml.h"\n/' jni/main.cpp
+          sed -i 's/\bConfig\b/aml_Config_Safe_t/g' jni/main.cpp
+          
+          # 5. CORREÇÃO 2: Resolve o erro da linha 271 aplicando um cast explícito de (void*)
+          # Isso faz o NDK r27 aceitar a conversão de uintptr_t para ponteiro
+          sed -i 's/aml->GetSym(h, n)/(void*)(aml->GetSym(h, n))/g' jni/main.cpp
+          
+          # 6. Executa a compilação oficial pura mapeando as pastas
           $ANDROID_NDK_LATEST_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
