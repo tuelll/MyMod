@@ -42,13 +42,23 @@ jobs:
           # 4. Corrige o Android.mk adicionando o logger.cpp na lista de compilação
           sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp/g' jni/Android.mk
           
-          # 5. Executa a compilação oficial injetando uma nova versão limpa da macro MYMODCFG
-          # Usamos o escopo raiz 'struct ::Config' para contornar completamente o conflito de namespace do C++
+          # 5. Cria um arquivo de correção local para criar o tipo global 'Config' antes
+          # que a macro dê conflito com a variável interna 'aml' da SDK
+          cat << 'EOF' > jni/patch_aml.h
+          #pragma once
+          class Config;
+          typedef class Config aml_Config_Safe_t;
+          EOF
+          
+          # 6. Injeta o arquivo auxiliar no topo do seu mod e troca a chamada do tipo
+          sed -i '1s/^/#include "patch_aml.h"\n/' jni/ImprovedIdles.cpp
+          sed -i 's/\bConfig\b/aml_Config_Safe_t/g' jni/ImprovedIdles.cpp
+          
+          # 7. Executa a compilação oficial mapeando as pastas necessárias
           $ANDROID_NDK_LATEST_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
-            NDK_APP_INCLUDES+="jni jni/mod" \
-            APP_CPPFLAGS="-DMYMODCFG(_guid,_name,_version,_author)=MYMOD(_guid,_name,_version,_author);static\ struct\ ::Config\ cfgLocal(#_guid);struct\ ::Config*\ cfg=\&cfgLocal;"
+            NDK_APP_INCLUDES+="jni jni/mod"
 
       - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
