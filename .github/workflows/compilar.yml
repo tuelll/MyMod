@@ -42,9 +42,14 @@ jobs:
           # 4. Corrige o Android.mk adicionando o logger.cpp na lista de compilação
           sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp/g' jni/Android.mk
           
-          # 5. Injeta cirurgicamente a definição do namespace no início do seu arquivo de Mod
-          # Isso faz a macro MYMODCFG reconhecer a classe aml::Config sem quebrar os arquivos da SDK
-          sed -i '1s/^/#define Config aml::Config\n/' jni/ImprovedIdles.cpp
+          # 5. AJUSTE CIRÚRGICO: Remove qualquer macro antiga e cria um apelido seguro (typedef)
+          # Injetamos o tipo customizado aml_SafeConfig_t diretamente apontando para o escopo raiz ::aml::Config
+          # E alteramos a chamada física da macro no ImprovedIdles.cpp para usar esse tipo limpo
+          sed -i 's/#include <mod\/amlmod.h>/#include <mod\/amlmod.h>\ntypedef ::aml::Config aml_SafeConfig_t;/g' jni/ImprovedIdles.cpp
+          sed -i 's/#include "mod\/amlmod.h"/#include "mod\/amlmod.h"\ntypedef ::aml::Config aml_SafeConfig_t;/g' jni/ImprovedIdles.cpp
+          
+          # Substitui a palavra Config usada pela macro pelo nosso tipo que ignora a variável local 'aml'
+          sed -i 's/\bConfig\b/aml_SafeConfig_t/g' jni/ImprovedIdles.cpp
           
           # 6. Executa a compilação oficial mapeando as pastas necessárias
           $ANDROID_NDK_LATEST_HOME/ndk-build \
