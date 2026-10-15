@@ -42,11 +42,11 @@ jobs:
           # 4. Corrige o Android.mk adicionando o logger.cpp na lista de compilação
           sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp/g' jni/Android.mk
           
-          # 5. Cria um arquivo de correção local para criar o tipo global 'Config' antes
-          # que a macro dê conflito com a variável interna 'aml' da SDK
+          # 5. AJUSTE: Inclui a definição real de config.h ANTES de gerar o apelido seguro
+          # Isso dá ao compilador o tamanho e os dados corretos da classe Config
           cat << 'EOF' > jni/patch_aml.h
           #pragma once
-          class Config;
+          #include <mod/config.h>
           typedef class Config aml_Config_Safe_t;
           EOF
           
