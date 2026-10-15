@@ -24,7 +24,7 @@ jobs:
         with:
           ndk-version: r27
 
-      - name: Organizar Pastas e Corrigir Codigo
+      - name: Organizar Pastas e Compilar
         run: |
           # 1. Cria a estrutura oficial JNI exigida pelo NDK
           mkdir -p jni
@@ -34,10 +34,14 @@ jobs:
           mv -f meu-mod/Application.mk jni/Application.mk 2>/dev/null || true
           mv -f meu-mod/main.cpp jni/main.cpp 2>/dev/null || true
           
-          # 3. Copia apenas a pasta de cabeçalhos oficiais da SDK para dentro de jni
+          # 3. Copia a pasta de cabeçalhos e códigos 'mod' da SDK diretamente para dentro de jni
           cp -r aml-sdk/mod jni/mod
           
-          # 4. CORREÇÃO 1: Resolve o problema do namespace/Config injetando o remendo global
+          # 4. Modifica cirurgicamente o Android.mk para INCLUIR os arquivos de suporte da SDK do AML
+          # Isso garante que a implementação do Config e do Logger entrem no build sem remover seu main.cpp
+          sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp mod\/config.cpp/g' jni/Android.mk
+          
+          # 5. CORREÇÃO JNI: Resolve o problema do namespace/Config injetando o remendo global
           cat << 'EOF' > jni/patch_aml.h
           #pragma once
           #include <mod/config.h>
@@ -47,15 +51,16 @@ jobs:
           sed -i '1s/^/#include "patch_aml.h"\n/' jni/main.cpp
           sed -i 's/\bConfig\b/aml_Config_Safe_t/g' jni/main.cpp
           
-          # 5. CORREÇÃO 2: Resolve o erro da linha 271 aplicando um cast explícito de (void*)
-          # Isso faz o NDK r27 aceitar a conversão de uintptr_t para ponteiro
+          # 6. CORREÇÃO DO CÓDIGO: Resolve o erro de cast do ponteiro da linha 271
           sed -i 's/aml->GetSym(h, n)/(void*)(aml->GetSym(h, n))/g' jni/main.cpp
           
-          # 6. Executa a compilação oficial pura mapeando as pastas
+          # 7. Executa a compilação oficial mapeando as pastas e flags nativas de diretório
           $ANDROID_NDK_LATEST_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
-            NDK_APP_INCLUDES+="jni jni/mod"
+            NDK_APP_INCLUDES+="jni jni/mod" \
+            APP_CFLAGS="-Ijni/mod" \
+            APP_CPPFLAGS="-Ijni/mod"
 
       - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
