@@ -1,4 +1,4 @@
-name: Compilar Mod GTA AML Simples
+name: Compilar Mod GTA AML Realistic Damage
 
 on:
   push:
@@ -32,29 +32,26 @@ jobs:
           # 2. Move os seus 3 arquivos locais para dentro da pasta jni
           mv -f meu-mod/Android.mk jni/Android.mk 2>/dev/null || true
           mv -f meu-mod/Application.mk jni/Application.mk 2>/dev/null || true
-          mv -f meu-mod/main.cpp jni/main.cpp 2>/dev/null || true
+          mv -f meu-mod/realistic_damage.cpp jni/realistic_damage.cpp 2>/dev/null || true
           
           # 3. Copia a pasta de cabeçalhos e códigos 'mod' da SDK diretamente para dentro de jni
           cp -r aml-sdk/mod jni/mod
           
           # 4. Modifica cirurgicamente o Android.mk para INCLUIR os arquivos de suporte da SDK do AML
-          # Isso garante que a implementação do Config e do Logger entrem no build sem remover seu main.cpp
+          # Isso garante a correta compilação e linkagem do Config e Logger
           sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp mod\/config.cpp/g' jni/Android.mk
           
-          # 5. CORREÇÃO JNI: Resolve o problema do namespace/Config injetando o remendo global
+          # 5. CORREÇÃO JNI: Resolve o problema clássico de tipo incompleto ou oculto do namespace 'aml'
           cat << 'EOF' > jni/patch_aml.h
           #pragma once
           #include <mod/config.h>
           typedef class Config aml_Config_Safe_t;
           EOF
           
-          sed -i '1s/^/#include "patch_aml.h"\n/' jni/main.cpp
-          sed -i 's/\bConfig\b/aml_Config_Safe_t/g' jni/main.cpp
+          sed -i '1s/^/#include "patch_aml.h"\n/' jni/realistic_damage.cpp
+          sed -i 's/\bConfig\b/aml_Config_Safe_t/g' jni/realistic_damage.cpp
           
-          # 6. CORREÇÃO DO CÓDIGO: Resolve o erro de cast do ponteiro da linha 271
-          sed -i 's/aml->GetSym(h, n)/(void*)(aml->GetSym(h, n))/g' jni/main.cpp
-          
-          # 7. Executa a compilação oficial mapeando as pastas e flags nativas de diretório
+          # 6. Executa a compilação oficial mapeando as pastas e flags nativas do compilador
           $ANDROID_NDK_LATEST_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
@@ -65,6 +62,6 @@ jobs:
       - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
         with:
-          name: mod-gta-simples
+          name: mod-gta-damage
           path: libs/
           
