@@ -37,13 +37,16 @@ jobs:
           mv -f meu-mod/ImprovedIdles.cpp jni/ImprovedIdles.cpp 2>/dev/null || true
           
           # 3. Copia a pasta de cabeçalhos e códigos 'mod' da SDK diretamente para dentro de jni
-          # Mantendo o logger.cpp na mesma pasta original dele (dentro de mod/) para não quebrar os includes
           cp -r aml-sdk/mod jni/mod
           
-          # 4. Corrige o Android.mk adicionando o arquivo dentro da pasta mod/ sem duplicar caminhos
+          # 4. Corrige o Android.mk adicionando o logger.cpp na lista de compilação
           sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp/g' jni/Android.mk
           
-          # 5. Executa a compilação oficial mapeando tanto a pasta jni quanto a subpasta jni/mod
+          # 5. Injeta cirurgicamente a definição do namespace no início do seu arquivo de Mod
+          # Isso faz a macro MYMODCFG reconhecer a classe aml::Config sem quebrar os arquivos da SDK
+          sed -i '1s/^/#define Config aml::Config\n/' jni/ImprovedIdles.cpp
+          
+          # 6. Executa a compilação oficial mapeando as pastas necessárias
           $ANDROID_NDK_LATEST_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
