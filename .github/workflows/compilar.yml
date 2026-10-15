@@ -1,4 +1,4 @@
-name: Compilar Mod GTA AML
+name: Compilar Mod GTA AML Simples
 
 on:
   push:
@@ -29,44 +29,23 @@ jobs:
           # 1. Cria a estrutura oficial JNI exigida pelo NDK
           mkdir -p jni
           
-          # 2. Move os seus arquivos locais para dentro da pasta jni
+          # 2. Move os seus 3 arquivos locais para dentro da pasta jni
           mv -f meu-mod/Android.mk jni/Android.mk 2>/dev/null || true
           mv -f meu-mod/Application.mk jni/Application.mk 2>/dev/null || true
-          mv -f meu-mod/Audio.cpp jni/Audio.cpp 2>/dev/null || true
-          mv -f meu-mod/Audio.h jni/Audio.h 2>/dev/null || true
-          mv -f meu-mod/ImprovedIdles.cpp jni/ImprovedIdles.cpp 2>/dev/null || true
+          mv -f meu-mod/main.cpp jni/main.cpp 2>/dev/null || true
           
-          # 3. Copia a pasta de cabeçalhos e códigos 'mod' da SDK diretamente para dentro de jni
-          # Mantendo os arquivos originais (logger.cpp e config.cpp) intactos nas suas respectivas pastas
+          # 3. Copia apenas a pasta de cabeçalhos oficiais da SDK para dentro de jni
           cp -r aml-sdk/mod jni/mod
           
-          # 4. Modifica cirurgicamente o Android.mk para INCLUIR os arquivos da SDK nas suas pastas originais
-          # Isso garante que os includes locais do tipo #include "logger.h" funcionem perfeitamente
-          sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp mod\/config.cpp/g' jni/Android.mk
-          
-          # 5. Cria o patch de cabeçalho auxiliar para evitar o conflito de namespaces do AML
-          cat << 'EOF' > jni/patch_aml.h
-          #pragma once
-          #include <mod/config.h>
-          typedef class Config aml_Config_Safe_t;
-          EOF
-          
-          # 6. Injeta o arquivo auxiliar no seu mod e troca o tipo de configuração local
-          sed -i '1s/^/#include "patch_aml.h"\n/' jni/ImprovedIdles.cpp
-          sed -i 's/\bConfig\b/aml_Config_Safe_t/g' jni/ImprovedIdles.cpp
-          
-          # 7. Executa a compilação oficial mapeando explicitamente todas as pastas internas no compilador
-          # A flag APP_CFLAGS força o compilador a buscar os cabeçalhos na pasta jni/mod de forma nativa
+          # 4. Executa a compilação oficial pura usando o seu Android.mk nativo
           $ANDROID_NDK_LATEST_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
-            NDK_APP_INCLUDES+="jni jni/mod" \
-            APP_CFLAGS="-Ijni/mod" \
-            APP_CPPFLAGS="-Ijni/mod"
+            NDK_APP_INCLUDES+="jni jni/mod"
 
       - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
         with:
-          name: mod-gta-completo
+          name: mod-gta-simples
           path: libs/
           
