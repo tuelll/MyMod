@@ -24,7 +24,7 @@ jobs:
         with:
           ndk-version: r27
 
-      - name: Organizar Pastas e Compilar
+      - name: Organizar Pastas e Corrigir Codigo
         run: |
           # 1. Cria a estrutura oficial JNI exigida pelo NDK
           mkdir -p jni
@@ -37,11 +37,10 @@ jobs:
           # 3. Copia a pasta de cabeçalhos e códigos 'mod' da SDK diretamente para dentro de jni
           cp -r aml-sdk/mod jni/mod
           
-          # 4. Modifica cirurgicamente o Android.mk para INCLUIR os arquivos de suporte da SDK do AML
-          # Isso garante a correta compilação e linkagem do Config e Logger
+          # 4. Modifica cirurgicamente o Android.mk para INCLUIR os arquivos da SDK
           sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp mod\/config.cpp/g' jni/Android.mk
           
-          # 5. CORREÇÃO JNI: Resolve o problema clássico de tipo incompleto ou oculto do namespace 'aml'
+          # 5. CORREÇÃO JNI: Resolve o problema clássico da macro Config
           cat << 'EOF' > jni/patch_aml.h
           #pragma once
           #include <mod/config.h>
@@ -51,7 +50,12 @@ jobs:
           sed -i '1s/^/#include "patch_aml.h"\n/' jni/realistic_damage.cpp
           sed -i 's/\bConfig\b/aml_Config_Safe_t/g' jni/realistic_damage.cpp
           
-          # 6. Executa a compilação oficial mapeando as pastas e flags nativas do compilador
+          # 6. CORREÇÃO DO NAMESPACE: Renomeia o namespace conflitante 'cfg' para 'my_cfg'
+          # Isso evita o choque com a variável 'extern Config* cfg;' da própria SDK
+          sed -i 's/namespace cfg\b/namespace my_cfg/g' jni/realistic_damage.cpp
+          sed -i 's/\bcfg::/my_cfg::/g' jni/realistic_damage.cpp
+          
+          # 7. Executa a compilação oficial mapeando as pastas
           $ANDROID_NDK_LATEST_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
