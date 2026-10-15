@@ -39,12 +39,11 @@ jobs:
           # 3. Copia a pasta de cabeçalhos 'mod' da SDK para dentro de jni
           cp -r aml-sdk/mod jni/mod
           
-          # 4. CRUCIAL: Copia o arquivo config.cpp da SDK para compilar junto e resolver o Linker
-          cp -f aml-sdk/mod/config.cpp jni/mod_config.cpp 2>/dev/null || true
+          # 4. Copia o arquivo da SDK que resolve as dependências do construtor de Strings/Config
+          cp -f aml-sdk/mod/logger.cpp jni/mod_logger.cpp 2>/dev/null || true
           
-          # 5. Adiciona o mod_config.cpp na lista de compilação do Android.mk dinamicamente
-          # Isso evita que você precise editar o seu Android.mk manualmente
-          sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := jni\/mod_config.cpp/g' jni/Android.mk
+          # 5. Corrige o Android.mk adicionando o arquivo sem duplicar o prefixo jni/
+          sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod_logger.cpp/g' jni/Android.mk
           
           # 6. Executa a compilação oficial usando o NDK r27
           $ANDROID_NDK_LATEST_HOME/ndk-build \
