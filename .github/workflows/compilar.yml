@@ -24,7 +24,7 @@ jobs:
         with:
           ndk-version: r27
 
-      - name: Organizar Pastas e Corrigir Codigo
+      - name: Organizar Pastas e Compilar
         run: |
           # 1. Cria a estrutura oficial JNI exigida pelo NDK
           mkdir -p jni
@@ -36,22 +36,15 @@ jobs:
           mv -f meu-mod/Audio.h jni/Audio.h 2>/dev/null || true
           mv -f meu-mod/ImprovedIdles.cpp jni/ImprovedIdles.cpp 2>/dev/null || true
           
-          # 3. Copia a pasta de cabeçalhos 'mod' do AML para dentro de jni
+          # 3. Copia a pasta de cabeçalhos 'mod' da SDK para dentro de jni
           cp -r aml-sdk/mod jni/mod
           
-          # 4. Remove qualquer gambiarra de namespace anterior do aml_fix.h
-          # Criamos apenas uma ponte direta para a classe de configuração sem tocar na palavra 'aml'
-          cat << 'EOF' > jni/aml_fix.h
-          #pragma once
-          #include <mod/amlmod.h>
-          #include <mod/config.h>
+          # 4. CRUCIAL: Copia o arquivo config.cpp da SDK para compilar junto e resolver o Linker
+          cp -f aml-sdk/mod/config.cpp jni/mod_config.cpp 2>/dev/null || true
           
-          // Mapeia a classe de configuração para o escopo global correto da SDK
-          typedef Config aml_Config_t;
-          EOF
-          
-          # 5. Modifica temporariamente o ImprovedIdles.cpp para se adaptar à SDK
-          sed -i '1s/^/#include "aml_fix.h"\n/' jni/ImprovedIdles.cpp
+          # 5. Adiciona o mod_config.cpp na lista de compilação do Android.mk dinamicamente
+          # Isso evita que você precise editar o seu Android.mk manualmente
+          sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := jni\/mod_config.cpp/g' jni/Android.mk
           
           # 6. Executa a compilação oficial usando o NDK r27
           $ANDROID_NDK_LATEST_HOME/ndk-build \
