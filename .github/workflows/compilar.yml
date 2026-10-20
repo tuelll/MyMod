@@ -24,7 +24,7 @@ jobs:
         with:
           ndk-version: r27
 
-      - name: Organizar Pastas e Compilar
+      - name: Organizar Pastas e Corrigir Codigo
         run: |
           # 1. Cria a estrutura oficial JNI exigida pelo NDK
           mkdir -p jni
@@ -37,8 +37,7 @@ jobs:
           # 3. Copia a pasta de cabeçalhos e códigos 'mod' da SDK diretamente para dentro de jni
           cp -r aml-sdk/mod jni/mod
           
-          # 4. Modifica cirurgicamente o Android.mk para INCLUIR os arquivos de suporte da SDK do AML
-          # Isso garante que a implementação do Config e do Logger entrem no build de forma correta
+          # 4. Modifica cirurgicamente o Android.mk para INCLUIR os arquivos da SDK do AML
           sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp mod\/config.cpp/g' jni/Android.mk
           
           # 5. CORREÇÃO JNI: Cria o remendo global que isola e resolve o tipo Config
@@ -51,7 +50,12 @@ jobs:
           sed -i '1s/^/#include "patch_aml.h"\n/' jni/main.cpp
           sed -i 's/\bConfig\b/aml_Config_Safe_t/g' jni/main.cpp
           
-          # 6. Executa a compilação oficial mapeando as pastas e flags nativas do compilador
+          # 6. REPARO DO GETSYM (CAST DE PONTEIRO): 
+          # Força todas as chamadas aml->GetSym a serem interpretadas como (void*) pelo NDK r27
+          # Isso resolve as linhas 92, 476, 477 e 478 de uma só vez de maneira segura
+          sed -i 's/aml->GetSym(/(void*)(aml->GetSym(/g' jni/main.cpp
+          
+          # 7. Executa a compilação oficial mapeando as pastas e flags nativas do compilador
           $ANDROID_NDK_LATEST_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
