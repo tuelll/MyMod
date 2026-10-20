@@ -50,18 +50,14 @@ jobs:
           sed -i '1s/^/#include "patch_aml.h"\n/' jni/main.cpp
           sed -i 's/\bConfig\b/aml_Config_Safe_t/g' jni/main.cpp
           
-          # 6. REPARO DO GETSYM (CAST DE PONTEIRO): 
-          # Força todas as chamadas aml->GetSym a serem interpretadas como (void*) pelo NDK r27
-          # Isso resolve as linhas 92, 476, 477 e 478 de uma só vez de maneira segura
-          sed -i 's/aml->GetSym(/(void*)(aml->GetSym(/g' jni/main.cpp
-          
-          # 7. Executa a compilação oficial mapeando as pastas e flags nativas do compilador
+          # 6. Executa a compilação oficial mapeando as pastas e aplicando as flags nativas
+          # A flag -fpermissive diz ao NDK r27 para aceitar as conversões de uintptr_t sem dar erro de sintaxe
           $ANDROID_NDK_LATEST_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
             NDK_APP_INCLUDES+="jni jni/mod" \
-            APP_CFLAGS="-Ijni/mod" \
-            APP_CPPFLAGS="-Ijni/mod"
+            APP_CFLAGS="-Ijni/mod -fpermissive" \
+            APP_CPPFLAGS="-Ijni/mod -fpermissive"
 
       - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
