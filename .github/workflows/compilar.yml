@@ -40,24 +40,32 @@ jobs:
           # 4. Modifica cirurgicamente o Android.mk para INCLUIR os arquivos da SDK do AML
           sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp mod\/config.cpp/g' jni/Android.mk
           
-          # 5. CORREÇÃO JNI: Cria o remendo global que isola e resolve o tipo Config
+          # 5. CORREÇÃO JNI E DE CAST: Cria o cabeçalho auxiliar definitivo
+          # Injetamos uma macro que intercepta o GetSym e adiciona o cast (void*) fechando os parênteses corretamente
           cat << 'EOF' > jni/patch_aml.h
           #pragma once
           #include <mod/config.h>
           typedef class Config aml_Config_Safe_t;
+          
+          // Força o compilador a converter o retorno de GetSym para ponteiro de forma segura
+          #define GetSym(h, n) GetSym(h, n))
           EOF
           
+          # 6. Aplica os patches de texto no arquivo principal
           sed -i '1s/^/#include "patch_aml.h"\n/' jni/main.cpp
           sed -i 's/\bConfig\b/aml_Config_Safe_t/g' jni/main.cpp
           
-          # 6. Executa a compilação oficial mapeando as pastas e aplicando as flags nativas
-          # A flag -fpermissive diz ao NDK r27 para aceitar as conversões de uintptr_t sem dar erro de sintaxe
+          # Altera cirurgicamente o aml->GetSym para incluir o (void*)( no início, 
+          # enquanto o nosso patch_aml.h injeta o parêntese de fechamento no final da chamada automaticamente
+          sed -i 's/aml->GetSym(/((void*)(aml->GetSym(/g' jni/main.cpp
+          
+          # 7. Executa a compilação oficial mapeando as pastas e aplicando as flags nativas
           $ANDROID_NDK_LATEST_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
             NDK_APP_INCLUDES+="jni jni/mod" \
-            APP_CFLAGS="-Ijni/mod -fpermissive" \
-            APP_CPPFLAGS="-Ijni/mod -fpermissive"
+            APP_CFLAGS="-Ijni/mod" \
+            APP_CPPFLAGS="-Ijni/mod"
 
       - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
