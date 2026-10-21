@@ -29,47 +29,52 @@ jobs:
           # 1. Cria a estrutura oficial JNI exigida pelo NDK
           mkdir -p jni
           
-          # 2. Move os seus 3 arquivos locais para dentro da pasta jni
-          mv -f meu-mod/Android.mk jni/Android.mk 2>/dev/null || true
-          mv -f meu-mod/Application.mk jni/Application.mk 2>/dev/null || true
-          mv -f meu-mod/main.cpp jni/main.cpp 2>/dev/null || true
+          # 2. Move os seus arquivos locais para dentro da pasta jni
+          cp -f meu-mod/Android.mk jni/Android.mk 2>/dev/null || true
+          cp -f meu-mod/Application.mk jni/Application.mk 2>/dev/null || true
+          cp -f meu-mod/main.cpp jni/main.cpp 2>/dev/null || true
+          # Copia também outros arquivos .cpp/.h que você tiver (como logger ou config se forem seus)
+          cp -f meu-mod/*.cpp jni/ 2>/dev/null || true
+          cp -f meu-mod/*.h jni/ 2>/dev/null || true
           
           # 3. Copia a pasta de cabeçalhos e códigos 'mod' da SDK diretamente para dentro de jni
           cp -r aml-sdk/mod jni/mod
           
-          # 4. Modifica cirurgicamente o Android.mk para INCLUIR os arquivos da SDK do AML
+          # 4. Modifica o Android.mk para incluir os arquivos essenciais da SDK do AML
+          # Se o seu Android.mk já tiver logger.cpp e config.cpp na lista, isso garante que não quebre
           sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp mod\/config.cpp/g' jni/Android.mk
           
-          # 5. CORREÇÃO JNI E DE CAST: Cria o cabeçalho auxiliar definitivo
-          # Injetamos uma macro que intercepta o GetSym e adiciona o cast (void*) fechando os parênteses corretamente
-          cat << 'EOF' > jni/patch_aml.h
-          #pragma once
-          #include <mod/config.h>
-          typedef class Config aml_Config_Safe_t;
+          # 5. CORREÇÃO EXATA DOS PARÊNTESES E DA LETRA 'a' SOLTA
+          # Remove a tentativa antiga de criar uma macro quebrada
+          rm -f jni/patch_aml.h
+          touch jni/patch_aml.h
           
-          // Força o compilador a converter o retorno de GetSym para ponteiro de forma segura
-          #define GetSym(h, n) GetSym(h, n))
-          EOF
+          # Correções diretas e cirúrgicas no texto da main.cpp antes de compilar:
+          echo "Aplicando correções de sintaxe na main.cpp..."
           
-          # 6. Aplica os patches de texto no arquivo principal
-          sed -i '1s/^/#include "patch_aml.h"\n/' jni/main.cpp
-          sed -i 's/\bConfig\b/aml_Config_Safe_t/g' jni/main.cpp
+          # Corrige a linha 92
+          sed -i 's/\*out = ((void\*)(aml->GetSym(hGTASA, name);/*out = (void*)(aml->GetSym(hGTASA, name));/g' jni/main.cpp
           
-          # Altera cirurgicamente o aml->GetSym para incluir o (void*)( no início, 
-          # enquanto o nosso patch_aml.h injeta o parêntese de fechamento no final da chamada automaticamente
-          sed -i 's/aml->GetSym(/((void*)(aml->GetSym(/g' jni/main.cpp
+          # Corrige as linhas de Process, Restart e Resurr fechando os parênteses devidamente
+          sed -i 's/((void\*)(aml->GetSym(hGTASA, "_ZN5CGame7ProcessEv");/(void*)(aml->GetSym(hGTASA, "_ZN5CGame7ProcessEv"));/g' jni/main.cpp
+          sed -i 's/((void\*)(aml->GetSym(hGTASA, "_ZN5CGame24InitialiseWhenRestartingEv");/(void*)(aml->GetSym(hGTASA, "_ZN5CGame24InitialiseWhenRestartingEv"));/g' jni/main.cpp
+          sed -i 's/((void\*)(aml->GetSym(hGTASA, "_ZN10CGameLogic36RestorePlayerStuffDuringResurrectionEP10CPlayerPed7CVectorf");/(void*)(aml->GetSym(hGTASA, "_ZN10CGameLogic36RestorePlayerStuffDuringResurrectionEP10CPlayerPed7CVectorf"));/g' jni/main.cpp
           
-          # 7. Executa a compilação oficial mapeando as pastas e aplicando as flags nativas
-          $ANDROID_NDK_LATEST_HOME/ndk-build \
+          # Limpa aquela letra 'a' ou string cortada que ficou grudada no if (sRestart)
+          sed -i 's/if (sRestart) a/if (sRestart) {}/g' jni/main.cpp
+          sed -i 's/void\* sResurr  = Sym("_ZN1/void* sResurr = nullptr;/g' jni/main.cpp
+          
+          # 6. Executa a compilação oficial usando o NDK r27 instalado pelo action
+          # Usamos o caminho correto do NDK do tool-cache ($ANDROID_NDK_HOME)
+          $ANDROID_NDK_HOME/ndk-build \
             NDK_PROJECT_PATH=. \
             NDK_APPLICATION_MK=jni/Application.mk \
-            NDK_APP_INCLUDES+="jni jni/mod" \
-            APP_CFLAGS="-Ijni/mod" \
-            APP_CPPFLAGS="-Ijni/mod"
+            APP_ABI=armeabi-v7a \
+            APP_PLATFORM=android-21
 
       - name: Disponibilizar Mod Pronto
         uses: actions/upload-artifact@v4
         with:
           name: mod-gta-completo
-          path: libs/
+          path: libs/armeabi-v7a/
           
