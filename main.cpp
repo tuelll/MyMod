@@ -1,3 +1,9 @@
+// Protecao: o patch_aml.h do projeto define uma macro GetSym quebrada ("...GetSym(h, n))")
+// antes dos headers do AML. Limpa antes de qualquer #include.
+#ifdef GetSym
+#undef GetSym
+#endif
+
 // DetachableScope - port AML (GTA SA Android, armv7 / 32 bits)
 // Mod original (PC .asi): vecondite (MIT). Port para AML: sem plugin-sdk, só funções
 // exportadas pela libGTASA.so, resolvidas por nome (aml->GetSym).
@@ -481,7 +487,4 @@ extern "C" void OnModLoad()
 
     void* sProcess = Sym("_ZN5CGame7ProcessEv");
     void* sRestart = Sym("_ZN5CGame24InitialiseWhenRestartingEv");
-    void* sResurr  = Sym("_ZN10CGameLogic36RestorePlayerStuffDuringResurrectionEP10CPlayerPed7CVectorf");
-    if (!sProcess) { logger->Error("simbolo ausente: CGame::Process"); ok = false; }
-
-    if (!ok) { logger->Error(
+    void* sResurr  = Sym("_ZN1
