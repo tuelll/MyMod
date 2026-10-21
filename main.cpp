@@ -8,6 +8,7 @@
 #include <mod/amlmod.h>
 #include <mod/logger.h>
 #include <mod/config.h>
+#include <dlfcn.h>
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
@@ -86,9 +87,15 @@ static void*  (*CAnimManager_BlendAnimation)(void*, void*, int, float);
 static void   (*CAnimAssoc_Start)(void*, float);
 static uint32_t* pTimeMs = nullptr;
 
+// dlsym direto (o patch_aml.h do projeto redefine a macro GetSym de forma quebrada)
+#ifdef GetSym
+#undef GetSym
+#endif
+static inline void* Sym(const char* name) { return dlsym(hGTASA, name); }
+
 static bool Resolve(void** out, const char* name)
 {
-    *out = aml->GetSym(hGTASA, name);
+    *out = Sym(name);
     if (!*out) logger->Error("simbolo ausente: %s", name);
     return *out != nullptr;
 }
@@ -472,18 +479,9 @@ extern "C" void OnModLoad()
     RESOLVE(CAnimAssoc_Start,                     "_ZN21CAnimBlendAssociation5StartEf");
     RESOLVE(pTimeMs,                              "_ZN6CTimer22m_snTimeInMillisecondsE");
 
-    void* sProcess = aml->GetSym(hGTASA, "_ZN5CGame7ProcessEv");
-    void* sRestart = aml->GetSym(hGTASA, "_ZN5CGame24InitialiseWhenRestartingEv");
-    void* sResurr  = aml->GetSym(hGTASA, "_ZN10CGameLogic36RestorePlayerStuffDuringResurrectionEP10CPlayerPed7CVectorf");
+    void* sProcess = Sym("_ZN5CGame7ProcessEv");
+    void* sRestart = Sym("_ZN5CGame24InitialiseWhenRestartingEv");
+    void* sResurr  = Sym("_ZN10CGameLogic36RestorePlayerStuffDuringResurrectionEP10CPlayerPed7CVectorf");
     if (!sProcess) { logger->Error("simbolo ausente: CGame::Process"); ok = false; }
 
-    if (!ok) { logger->Error("mod desativado (simbolos ausentes)"); return; }
-
-    aml->Hook(sProcess, (void*)hook_CGame_Process, (void**)&orig_CGame_Process);
-    if (sRestart) aml->Hook(sRestart, (void*)hook_Restart, (void**)&orig_Restart);
-    else logger->Error("aviso: InitialiseWhenRestarting ausente");
-    if (sResurr)  aml->Hook(sResurr, (void*)hook_Resurrect, (void**)&orig_Resurrect);
-    else logger->Error("aviso: RestorePlayerStuffDuringResurrection ausente");
-
-    logger->Info("DetachableScope 1.0 ativo (botao X)");
-}
+    if (!ok) { logger->Error(
