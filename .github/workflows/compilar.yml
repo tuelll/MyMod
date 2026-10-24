@@ -1,75 +1,51 @@
-name: Compilar Novo Mod GTA AML
+name: Windows Cloud PC - Anydesk (Optimized)
 
 on:
-  push:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Start Building...
+    runs-on: windows-latest
+    timeout-minutes: 10080  # Máximo de 7 dias para evitar tempo de execução excessivo
+
     steps:
-      - name: Baixar Codigo do Mod
-        uses: actions/checkout@v4
-        with:
-          path: meu-mod
-
-      - name: Baixar a SDK Oficial do AML
-        uses: actions/checkout@v4
-        with:
-          repository: RusJJ/AndroidModLoader
-          path: aml-sdk
-
-      - name: Instalar Android NDK
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r27
-
-      - name: Organizar Pastas e Corrigir Codigo
+      - name: Downloading & Installing Essentials
         run: |
-          # 1. Cria a estrutura oficial JNI exigida pelo NDK
-          mkdir -p jni
-          
-          # 2. Move os seus arquivos locais para dentro da pasta jni
-          cp -f meu-mod/Android.mk jni/Android.mk 2>/dev/null || true
-          cp -f meu-mod/Application.mk jni/Application.mk 2>/dev/null || true
-          cp -f meu-mod/main.cpp jni/main.cpp 2>/dev/null || true
-          cp -f meu-mod/*.cpp jni/ 2>/dev/null || true
-          cp -f meu-mod/*.h jni/ 2>/dev/null || true
-          
-          # 3. Copia a pasta de cabeçalhos e códigos 'mod' da SDK diretamente para dentro de jni
-          cp -r aml-sdk/mod jni/mod
-          
-          # 4. Modifica o Android.mk para incluir os arquivos essenciais da SDK do AML
-          sed -i 's/LOCAL_SRC_FILES :=/LOCAL_SRC_FILES := mod\/logger.cpp mod\/config.cpp/g' jni/Android.mk
-          
-          # 5. CORREÇÃO DE TIPOS (Casting uintptr_t para void*)
-          echo "Aplicando correções de casting e sintaxe na main.cpp..."
-          
-          # Adiciona o cast (void*) nas linhas que o compilador apontou
-          sed -i 's/\*out = aml->GetSym/*out = (void*)aml->GetSym/g' jni/main.cpp
-          sed -i 's/void\* sProcess = aml->GetSym/void* sProcess = (void*)aml->GetSym/g' jni/main.cpp
-          sed -i 's/void\* sRestart = aml->GetSym/void* sRestart = (void*)aml->GetSym/g' jni/main.cpp
-          sed -i 's/void\* sResurr  = aml->GetSym/void* sResurr  = (void*)aml->GetSym/g' jni/main.cpp
-          
-          # Limpa aquela verificação if (sRestart) antiga/quebrada e garante que não quebre o bloco
-          sed -i 's/if (sRestart) a/if (sRestart) { }/g' jni/main.cpp
-          sed -i 's/if (sRestart) {}/if (sRestart) { }/g' jni/main.cpp
-          
-          # 6. FECHAMENTO DA FUNÇÃO PRINCIPAL
-          # Adiciona uma chave de fechamento extra '}' no final do arquivo main.cpp para fechar a função da linha 441
-          echo "" >> jni/main.cpp
-          echo "}" >> jni/main.cpp
-          
-          # 7. Executa a compilação oficial usando o NDK r27 instalado pelo action
-          $ANDROID_NDK_HOME/ndk-build \
-            NDK_PROJECT_PATH=. \
-            NDK_APPLICATION_MK=jni/Application.mk \
-            APP_ABI=armeabi-v7a \
-            APP_PLATFORM=android-21
+          # Baixa o arquivo .bat para instalar componentes essenciais
+          Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1" -OutFile "Downloads.bat"
+          # Executa o script .bat para instalar os componentes
+          cmd /c Downloads.bat
 
-      - name: Disponibilizar Mod Pronto
-        uses: actions/upload-artifact@v4
-        with:
-          name: mod-gta-completo
-          path: libs/armeabi-v7a/
-          
+      - name: Log In To AnyDesk
+        run: |
+          # Verifica se o arquivo start.bat existe antes de executar
+          if (Test-Path "start.bat") {
+            cmd /c start.bat
+          } else {
+            Write-Host "Arquivo start.bat não encontrado. Verifique a configuração."
+          }
+
+      - name: Monitor and Restart AnyDesk if Needed
+        run: |
+          # Monitora a conexão do AnyDesk e reinicia se necessário
+          while ($true) {
+            $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
+            if (-not $process) {
+              Write-Host "AnyDesk não está rodando, reiniciando..."
+              cmd /c start.bat
+            }
+            Start-Sleep -Seconds 300  # Verifica a cada 5 minutos
+          }
+
+      - name: Time Counter (Long Running Task)
+        run: |
+          # Configura para manter a máquina em execução
+          Start-Sleep -Seconds 604800  # 7 dias de execução contínua
+
+      - name: Clean Up Temporary Files
+        if: success()  # Executa esta etapa apenas se todas as etapas anteriores forem bem-sucedidas
+        run: |
+          # Remove arquivos temporários ou logs gerados
+          Remove-Item Downloads.bat -Force
+          Write-Host "Limpeza completa."
